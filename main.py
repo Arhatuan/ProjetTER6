@@ -32,12 +32,17 @@ def parse_args():
                         choices=["RLM", "FORCE", "DIST"],
                         nargs="*",
                         type=str.upper,
-                        default=["RLM", "Force"],
+                        default=["RLM", "FORCE"],
                         help="Characteristics (or descriptors) to use. Choices are : RLM, Force and Dist. Default = [RLM, Force]")
     parser.add_argument("-f", "--force",
                         type=float,
                         default=2,
                         help="Degree of force for the Force descriptor. Default = 2")
+    parser.add_argument("--nb_dir",
+                        type=int,
+                        choices=[4,8],
+                        default=4,
+                        help="The number of directions to evaluate. Either 4 or 8. Default = 2")
 
 
     args = parser.parse_args()
@@ -49,7 +54,7 @@ def parse_args():
             annotations = load_annotations(PATH_ANNOTATIONS_SIMPLESHAPES1)
         case "S2":
             path_db = PATH_DB_SIMPLESHAPES2
-            annotations = load_annotations(PATH_ANNOTATIONS_SIMPLESHAPES1)
+            annotations = load_annotations(PATH_ANNOTATIONS_SIMPLESHAPES2)
         case _:
             parser.error("The database argument isn't correct.")
 
@@ -68,32 +73,30 @@ def parse_args():
         case _: parser.error("Unsupported classifier")
 
     
-    return (path_db, annotations, classifier, descriptors, args.force)
+    return (path_db, annotations, classifier, descriptors, args.force, args.nb_dir)
 
 
 
 if __name__ == '__main__':
 
-    (path_db, annotations, classifier, descriptors, force) = parse_args()
+    (path_db, annotations, classifier, descriptors, force, nb_directions) = parse_args()
 
     # with open("annotations/SpatialSense", 'r') as f:
     #     SpatialSense = json.load(f)
 
-    print(f"Database : {path_db.split(os.path.sep)[-1]}")
-    print(f"Classifier : {classifier.capitalize()}")
-    print(f"Descriptors : {", ".join(descriptors)}")
-    if "force" in [descriptor.lower() for descriptor in descriptors]: print(f"Force : {force}")
+    print("Parameters :")
+    print(f"\t• Database : {path_db.split(os.path.sep)[-1]}")
+    print(f"\t• Classifier : {classifier.capitalize()}")
+    print(f"\t• Descriptors : {", ".join(descriptors)}")
+    if "force" in [descriptor.lower() for descriptor in descriptors]: print(f"\t• Force : {force}")
+    print(f"\t• Nb of directions : {nb_directions}")
     print()
-    time.sleep(2)
     
-    X1, Y1 = ModelLearning2.compute_extendedRLM_on_SimpleShape_v2(path_db, annotations, (68, 1, 84, 255), 3, force, descriptors)
+    timeStart = time.time()
+    X1, Y1 = ModelLearning2.compute_extendedRLM_on_SimpleShape_v2(path_db, annotations, (68, 1, 84, 255), 3, force, descriptors, nb_directions)
+    print("Time taken for computing descriptors : {:.1f}s".format(time.time() - timeStart))
+    print()
     
     #X2, Y2 = ModelLearning2.compute_extendedRLM_on_SimpleShape("images/SimpleShapes2", SimpleShape2, (68, 1, 84, 255), 3, 2)
-
-    print(f"Results for database '{path_db.split(os.path.sep)[-1]}'")
-    print(f"\t-> descriptors : {", ".join(descriptors)}")
-    if "force" in [descriptor.lower() for descriptor in descriptors]: print(f"\t-> force : {force}")
-    print(f"\t-> classifier : {classifier.capitalize()}")
-    print()
 
     ModelLearning2.train_model_v2(X1, Y1, True, classifier)
