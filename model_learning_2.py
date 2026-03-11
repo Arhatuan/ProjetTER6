@@ -101,3 +101,83 @@ def compute_extendedRLM_on_SimpleShape_v2(folder, annotations, background, step,
             Y_data.append(row["rel"])
     
     return X_data, Y_data
+
+
+
+def get_trained_model(X: list, Y: list, classifier=classifiers.MLP):
+    """Train a model given data (X) and its ground truth (Y)
+
+    Args:
+        X (list): data to learn from. They are values obtained by descriptors.
+        Y (list): the ground truth of the X data. (Y[i] corresponds to the data X[i])
+        classifier (str, optional): the classifier to train. Defaults to classifiers.MLP.
+
+    Returns:
+        classifier: the trained classifier
+    """
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2) # 0.2
+
+    # Choose the classifier
+    match classifier:
+        case classifiers.MLP:   clf = MLPClassifier(hidden_layer_sizes=(4, 448), solver='adam', max_iter=1000)  # 224 
+        case classifiers.RF:    clf = RandomForestClassifier()
+        case _:                 raise ValueError(f"Unsupported classifier : {classifier}")
+
+    clf.fit(X_train, Y_train)
+    return clf
+
+def print_scores(clf, X: list, Y: list, padding = ""):
+    """Print the scores of the classifier on the given data.
+    It makes a cross-validation on 5 subsets of the data.
+
+    Args:
+        clf: the classifier to test
+        X (list): data to test. They are values obtained by descriptors. 
+        Y (list): the ground truth of the X data. (Y[i] corresponds to the data X[i])
+    """
+    scores = cross_val_score(clf, X, Y, cv=5)
+    print(padding + "%0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
+    #print("Results per sub-base in cross-validation : \n", scores)
+
+
+def print_confusion_matrix(clf, X: list, Y: list, nb_directions: int, padding = ""):
+    # Gets the directions we have labels for (either 4 cardinal directions, or 8)
+    match nb_directions:
+        case 4: labels = SIMPLESHAPES_CLASSES_4
+        case 8: labels = SIMPLESHAPES_CLASSES_8
+        case _: raise ValueError(f"Unsupported number of directions for labels : {nb_directions}")
+    
+    Y_predictions = clf.predict(X)
+    conf_matrix = confusion_matrix(Y, Y_predictions, labels=labels)
+
+    if nb_directions == 8:
+        labels = ['Above', 'Under', 'Left', 'Right', 'Abv L', 'Abv R', 'Und L', 'Und R'] # shorter labels (for display only)
+
+    max_str_length = max([len(label) for label in labels] + [len(str(np.max(conf_matrix)))])
+
+    # First line (header)
+    constructed_string = padding + " "*(max_str_length+3)
+    for label in labels:
+        constructed_string += ("{:^"+str(max_str_length)+"}").format(label)
+        constructed_string += " | "
+    constructed_string = constructed_string[:-2]
+
+    # Other lines (matrix values)
+    for i, label in enumerate(labels):
+        constructed_string += "\n" + padding
+        constructed_string += ("{:<"+str(max_str_length)+"}").format(label)
+        constructed_string += " "*2
+        for j in range(len(conf_matrix[i])):
+            constructed_string += ("{:^"+str(max_str_length+3)+"}").format(conf_matrix[i,j])
+        constructed_string += ("{:^"+str(max_str_length+3)+"}").format(np.sum(conf_matrix[i,:]))
+
+    # Last line (column sum)
+    constructed_string += "\n" + padding
+    constructed_string += " "*(max_str_length+2)
+    for i, label in enumerate(labels):
+        constructed_string += ("{:^"+str(max_str_length+3)+"}").format(np.sum(conf_matrix[:,i]))
+    constructed_string += ("{:^"+str(max_str_length+3)+"}").format(np.sum(conf_matrix))
+
+    print("\n"+ padding + "Confusion matrix :\n", constructed_string)
+    
+

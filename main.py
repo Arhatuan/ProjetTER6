@@ -17,9 +17,10 @@ PATH_ANNOTATIONS_SIMPLESHAPES2 = os.path.join(Path(__file__).parent, "annotation
 def parse_args():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("-c", "--classifier",
+    parser.add_argument("-c", "--classifiers",
                         choices=["MLP", "RF"],
-                        default="MLP",
+                        nargs="*",
+                        default=["MLP"],
                         type=str.upper,
                         help="Classifier to use. Choices are : MLP (multi-layer perceptron) and RF (Random forests). Default = MLP")
     parser.add_argument("--db", "--database",
@@ -67,36 +68,44 @@ def parse_args():
             case "DIST": descriptors.append(ModelLearning2.descriptors.DISTANCE)
 
     # The classifier to train a model on
-    match args.classifier:
-        case "MLP": classifier = ModelLearning2.classifiers.MLP
-        case "RF":  classifier = ModelLearning2.classifiers.RF
-        case _: parser.error("Unsupported classifier")
+    classifiers = []
+    for classifier in args.classifiers:
+        match classifier:
+            case "MLP": classifiers.append(ModelLearning2.classifiers.MLP)
+            case "RF":  classifiers.append(ModelLearning2.classifiers.RF)
+            case _: parser.error("Unsupported classifier")
 
     
-    return (path_db, annotations, classifier, descriptors, args.force, args.nb_dir)
+    return (path_db, annotations, classifiers, descriptors, args.force, args.nb_dir)
 
 
-
-if __name__ == '__main__':
-
-    (path_db, annotations, classifier, descriptors, force, nb_directions) = parse_args()
-
-    # with open("annotations/SpatialSense", 'r') as f:
-    #     SpatialSense = json.load(f)
-
+def show_parameters(path_db: str, classifiers: list[str], descriptors: list[str], force: float, nb_directions: int):
     print("Parameters :")
     print(f"\t• Database : {path_db.split(os.path.sep)[-1]}")
-    print(f"\t• Classifier : {classifier.capitalize()}")
+    print("\t• Classifier : {}".format( ", ".join([c.capitalize() for c in classifiers]) ) )
     print(f"\t• Descriptors : {", ".join(descriptors)}")
     if "force" in [descriptor.lower() for descriptor in descriptors]: print(f"\t• Force : {force}")
     print(f"\t• Nb of directions : {nb_directions}")
     print()
+
+
+if __name__ == '__main__':
+
+    # 1) Gets the parameters from the command line, and show them for confirmation
+    (path_db, annotations, classifiers, descriptors, force, nb_directions) = parse_args()
+    show_parameters(path_db, classifiers, descriptors, force, nb_directions)
     
+    # 2) Compute the descriptors values (and the annotations at the same time)
     timeStart = time.time()
     X1, Y1 = ModelLearning2.compute_extendedRLM_on_SimpleShape_v2(path_db, annotations, (68, 1, 84, 255), 3, force, descriptors, nb_directions)
     print("Time taken for computing descriptors : {:.1f}s".format(time.time() - timeStart))
-    print()
-    
-    #X2, Y2 = ModelLearning2.compute_extendedRLM_on_SimpleShape("images/SimpleShapes2", SimpleShape2, (68, 1, 84, 255), 3, 2)
 
-    ModelLearning2.train_model_v2(X1, Y1, True, classifier)
+    # 3) Train a classifier on the data, and show its scores
+    for classifier in classifiers:
+        print("\n• Results for '{}' :".format(classifier.capitalize()))
+        clf = ModelLearning2.get_trained_model(X1, Y1, classifier)
+        ModelLearning2.print_scores(clf, X1, Y1, "\t")
+        ModelLearning2.print_confusion_matrix(clf, X1, Y1, nb_directions, "\t")
+    
+    # with open("annotations/SpatialSense", 'r') as f:
+    #     SpatialSense = json.load(f)
