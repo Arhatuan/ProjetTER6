@@ -11,6 +11,7 @@ descriptors = types.SimpleNamespace()
 descriptors.RLM = "rlm"
 descriptors.FORCE = "force"
 descriptors.DISTANCE = "distance"
+descriptors.ANGLES = "angles"
 
 classifiers = types.SimpleNamespace()
 classifiers.MLP = "multi-layer perceptron"
@@ -86,7 +87,7 @@ def compute_extendedRLM_on_SimpleShape_v2(folder, annotations, background, step,
             and row['rel'] in tested_directions): # number of directions tested
 
             img_name = f"{folder}/img-{row['obj1']}-{row['obj2']}-{row['nb']}.png"
-            rlm1, rlm2, forces, dist1, dist2 = Image2.image_processing_v2(img_name, background, step, force)
+            rlm1, rlm2, forces, dist1, dist2, angles = Image2.image_processing_v2(img_name, background, step, force)
 
             # Concatenate the descriptors' vectors 
             #   (for example : 1000 data with each 5 descriptors' vectors of length 120 -> total vector of length 1000 * 120 * 5 = 600 000)
@@ -96,6 +97,7 @@ def compute_extendedRLM_on_SimpleShape_v2(folder, annotations, background, step,
                     case descriptors.RLM:       sumDescriptors = sumDescriptors + (rlm1 + rlm2)
                     case descriptors.FORCE:     sumDescriptors = sumDescriptors + (forces)
                     case descriptors.DISTANCE:  sumDescriptors = sumDescriptors + (dist1 + dist2)
+                    case descriptors.ANGLES:    sumDescriptors = sumDescriptors + (angles)
 
             X_data.append(sumDescriptors)
             Y_data.append(row["rel"])

@@ -30,7 +30,7 @@ def parse_args():
                         help="Database to use. Choices are : S1 (SimpleShapes1) and S2 (SimpleShapes2). Default = S1")
     
     parser.add_argument("-d", "--descriptors",
-                        choices=["RLM", "FORCE", "DIST"],
+                        choices=["RLM", "FORCE", "DIST", "ANGLE"],
                         nargs="*",
                         type=str.upper,
                         default=["RLM", "FORCE"],
@@ -66,6 +66,7 @@ def parse_args():
             case "RLM": descriptors.append(ModelLearning2.descriptors.RLM)
             case "FORCE": descriptors.append(ModelLearning2.descriptors.FORCE)
             case "DIST": descriptors.append(ModelLearning2.descriptors.DISTANCE)
+            case "ANGLE": descriptors.append(ModelLearning2.descriptors.ANGLES)
 
     # The classifier to train a model on
     classifiers = []

@@ -1,4 +1,6 @@
 import math
+import numpy as np
+import cv2 as cv
 from extendedRLM import image as ImageRLM
 
 
@@ -46,6 +48,78 @@ def distance_descriptors(objects, x, y, lines) -> tuple[list[float], list[float]
 
     return (dist1, dist2)
 
+
+def angle_descriptor(objects) -> list[float]:
+    """Based of the angles of every (point in object A, point in object B) couples of point,
+    compute probabilities of belonging to either "Right", "Left", "Above", "Under" directions.
+
+    Args:
+        objects: objects to compute data from.
+
+    Returns:
+        probabilities (list[float]): probabilities for "Right", "Left", "Above" and "Under" (in this order)
+    """
+
+    # 0) Reduce the image's size so that there aren't too much couples of pixels to compute the angles
+    #       (or else it takes seconds to compute, instead of milliseconds)
+    objectA = objects[0]
+    objectB = objects[1]
+    nbCouplesPointsInitial = len(objectA[objectA == True]) * len(objectB[objectB == True])
+
+    if nbCouplesPointsInitial > 10000:
+        ratioResize = 1/4
+        objectA = cv.resize(objectA.astype("uint8"), dsize=(int(objectA.shape[0] * ratioResize), int(objectA.shape[1] * ratioResize))).astype("bool")
+        objectB = cv.resize(objectB.astype("uint8"), dsize=(int(objectB.shape[0] * ratioResize), int(objectB.shape[1] * ratioResize))).astype("bool")
+
+
+    # 1) Get the (x,y) coordinates of the points in each of the 2 objects
+    pointsObjectA = np.argwhere(objectA == True)
+    pointsObjectB = np.argwhere(objectB == True)
+
+    # 2) Compute the angles' histogram between each couple of points (pA, pB)
+    angleHist = dict()
+
+    for pA in pointsObjectA:
+        for pB in pointsObjectB:
+            dy = pB[1] - pA[1]
+            dx = pB[0] - pA[0]
+            angleInRadians = math.atan2(dy, dx) # in interval [-pi ; +pi]
+            angleHist[angleInRadians] = angleHist.get(angleInRadians, 0) + 1
+
+    # 3) Normalize the angles' histogram (so the values are < 1) (they correspond to frequencies of the angles)
+    nbCouplesPoints = len(pointsObjectA) * len(pointsObjectB)
+    angleHist = {k: v / nbCouplesPoints for k,v in angleHist.items()}
+
+    # 4) Compute the compability of the distribution (the histogram) to each of the 4 fuzzy sets (one for each direction)
+    #       Right :     cos^2 on [-pi/2 ; +pi/2]
+    #       Left :      cos^2 on [-pi ; -pi/2] u [+pi/2 ; +pi]
+    #       Above :     sin^2 on [-pi ; 0]
+    #       Under :     sin^2 on [0 ; +pi]
+    #   (see the paper "Spatial Organization in 2D images", Fig. 5 in chapter III. A)
+    directionsCompability = dict()
+    for direction in ["Right", "Left", "Above", "Under"]:
+        directionsCompability[direction] = 0
+
+    for angle, angleFrequency in angleHist.items():
+        cos2value = math.cos(angle)**2
+        sin2value = math.sin(angle)**2
+
+        # Right or Left
+        if cos2value > -math.pi / 2 and cos2value < math.pi / 2:
+            directionsCompability["Right"] += cos2value * angleFrequency
+        else:
+            directionsCompability["Left"] += cos2value * angleFrequency
+
+        # Above or Under
+        if sin2value < 0:
+            directionsCompability["Above"] += sin2value * angleFrequency
+        else:
+            directionsCompability["Under"] += sin2value * angleFrequency
+
+    #print(directionsCompability)
+
+    return list(directionsCompability.values())
+
 def image_processing_v2(imagename, background, step, force_type):
     """
     Compute from an image, the RLM of the first and the second object and forces histogram.
@@ -55,10 +129,12 @@ def image_processing_v2(imagename, background, step, force_type):
     :param force_type: type of force to use for the computation (usually 0 or 2).
     :return: 5 histograms of the same size: RLM1, RLM2, F-histogram, DIST1, DIST2.
     """
+
     objects = ImageRLM.image_segmentation(imagename, background)
     x, y = ImageRLM.center_point(objects)
     lines, diameters = ImageRLM.lines_diameters(objects, x, y, step * math.pi / 180)
     rlm1, rlm2 = ImageRLM.radial_line_model(lines, objects)
     force = ImageRLM.forces(objects, diameters, force_type)
     dist1, dist2 = distance_descriptors(objects, x, y, lines)
-    return rlm1, rlm2, force, dist1, dist2
+    angles = angle_descriptor(objects)
+    return rlm1, rlm2, force, dist1, dist2, angles
