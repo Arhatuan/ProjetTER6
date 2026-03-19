@@ -105,13 +105,13 @@ def angle_descriptor(objects) -> list[float]:
         sin2value = math.sin(angle)**2
 
         # Right or Left
-        if cos2value > -math.pi / 2 and cos2value < math.pi / 2:
+        if angle > -math.pi / 2 and angle < math.pi / 2:
             directionsCompability["Right"] += cos2value * angleFrequency
         else:
             directionsCompability["Left"] += cos2value * angleFrequency
 
         # Above or Under
-        if sin2value < 0:
+        if angle < 0:
             directionsCompability["Above"] += sin2value * angleFrequency
         else:
             directionsCompability["Under"] += sin2value * angleFrequency
@@ -137,4 +137,22 @@ def image_processing_v2(imagename, background, step, force_type):
     force = ImageRLM.forces(objects, diameters, force_type)
     dist1, dist2 = distance_descriptors(objects, x, y, lines)
     angles = angle_descriptor(objects)
+    return rlm1, rlm2, force, dist1, dist2, angles
+
+
+def image_processing_v3(imagename, background, step, force_type, 
+                        computeRLM: bool = False, computeForce: bool = False,
+                        computeDist: bool = False, computeAngles: bool = False):
+    rlm1, rlm2, force = [], [], []
+    dist1, dist2, angles = [], [], []
+
+    objects = ImageRLM.image_segmentation(imagename, background)
+    x, y = ImageRLM.center_point(objects)
+    lines, diameters = ImageRLM.lines_diameters(objects, x, y, step * math.pi / 180)
+
+    if computeRLM:      rlm1, rlm2 = ImageRLM.radial_line_model(lines, objects)
+    if computeForce:    force = ImageRLM.forces(objects, diameters, force_type)
+    if computeDist:     dist1, dist2 = distance_descriptors(objects, x, y, lines)
+    if computeAngles:   angles = angle_descriptor(objects)
+    
     return rlm1, rlm2, force, dist1, dist2, angles
