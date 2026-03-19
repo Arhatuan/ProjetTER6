@@ -11,6 +11,9 @@ descriptors = types.SimpleNamespace()
 descriptors.RLM = "rlm"
 descriptors.FORCE = "force"
 descriptors.DISTANCE = "distance"
+descriptors.DIST_MAX = "distance_max"
+descriptors.DIST1 = "dist1"
+descriptors.DIST2 = "dist2"
 descriptors.ANGLES = "angles"
 
 classifiers = types.SimpleNamespace()
@@ -105,6 +108,65 @@ def compute_extendedRLM_on_SimpleShape_v2(folder, annotations, background, step,
     return X_data, Y_data
 
 
+def print_current_state_computing_descriptors(nb: int, total_length: int, img_name: str):
+    strProgress = "(progress: {:2.1%})".format(nb/total_length)
+    print("{:<16} {:>18}".format(img_name, strProgress), end="\r")
+    if nb == total_length: print() # to cancel the last carriage return character '\r'
+
+def compute_descriptors_and_Y_data_on_SimpleShape(folder, annotations, background, step, force, descriptors_list, nb_directions):
+    descriptorsValues = { k:[] for k in list(descriptors.__dict__.values())}
+    Y_data = []
+    total_length = len(annotations)
+
+    # Gets the directions we're testing (either 4 cardinal directions, or 8)
+    match nb_directions:
+        case 4: tested_directions = SIMPLESHAPES_CLASSES_4
+        case 8: tested_directions = SIMPLESHAPES_CLASSES_8
+        case _: raise ValueError(f"Unsupported number of directions to test : {nb_directions}")
+
+    for i, row in enumerate(annotations):
+    
+        # Print the current state of computing the descriptors for each image in the database
+        strImgProcessed = f"img-{row['obj1']}-{row['obj2']}-{row['nb']}.png"
+        print_current_state_computing_descriptors(i+1, total_length, strImgProcessed)
+
+        if (row['nb'] != "?" 
+            # and row['diff'] != '4' # exclude max difficulty
+            and row['rel'] in tested_directions): # number of directions tested
+
+            img_name = f"{folder}/img-{row['obj1']}-{row['obj2']}-{row['nb']}.png"
+            rlm1, rlm2, forces, dist1, dist2, angles = Image2.image_processing_v3(
+                                                            img_name, background, step, force,
+                                                            computeRLM=     descriptors.RLM in descriptors_list,
+                                                            computeForce=   descriptors.FORCE in descriptors_list,
+                                                            computeDist=    descriptors.DISTANCE in descriptors_list or descriptors.DIST_MAX in descriptors_list,
+                                                            computeAngles=  descriptors.ANGLES in descriptors_list)
+            
+            descriptorsValues[descriptors.RLM].append( (rlm1 + rlm2) )
+            descriptorsValues[descriptors.FORCE].append( forces )
+            descriptorsValues[descriptors.DIST1].append( dist1 )
+            descriptorsValues[descriptors.DIST2].append( dist2 )
+            descriptorsValues[descriptors.ANGLES].append( angles )
+
+            Y_data.append(row["rel"])
+    
+    return descriptorsValues, Y_data
+
+def compute_X_data_from_descriptors(descriptors_values: dict, descriptors_list: list):
+    X_data = []
+
+    for i in range(len(descriptors_values[descriptors.DIST1])):
+        sum_descriptors = []
+        for descriptor in descriptors_list:
+            match descriptor:
+                case descriptors.RLM:       sum_descriptors.extend( descriptors_values[descriptors.RLM][i] )
+                case descriptors.FORCE:     sum_descriptors.extend( descriptors_values[descriptors.FORCE][i] )
+                case descriptors.DISTANCE:  sum_descriptors.extend( descriptors_values[descriptors.DIST1][i] + descriptors_values[descriptors.DIST2][i] )
+                case descriptors.DIST_MAX:  sum_descriptors.extend( max( descriptors_values[descriptors.DIST1][i], descriptors_values[descriptors.DIST2][i] ) )
+                case descriptors.ANGLES:    sum_descriptors.extend( descriptors_values[descriptors.ANGLES][i] )
+        X_data.append(sum_descriptors)
+
+    return X_data
 
 def get_trained_model(X: list, Y: list, classifier=classifiers.MLP):
     """Train a model given data (X) and its ground truth (Y)
@@ -128,7 +190,7 @@ def get_trained_model(X: list, Y: list, classifier=classifiers.MLP):
     clf.fit(X_train, Y_train)
     return clf
 
-def print_scores(clf, X: list, Y: list, padding = ""):
+def get_scores(clf, X: list, Y: list, printScores = False, padding = ""):
     """Print the scores of the classifier on the given data.
     It makes a cross-validation on 5 subsets of the data.
 
@@ -138,8 +200,10 @@ def print_scores(clf, X: list, Y: list, padding = ""):
         Y (list): the ground truth of the X data. (Y[i] corresponds to the data X[i])
     """
     scores = cross_val_score(clf, X, Y, cv=5)
-    print(padding + "%0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
-    #print("Results per sub-base in cross-validation : \n", scores)
+    if printScores:
+        print(padding + "%0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
+        #print("Results per sub-base in cross-validation : \n", scores)
+    return scores
 
 
 def print_confusion_matrix(clf, X: list, Y: list, nb_directions: int, padding = ""):
