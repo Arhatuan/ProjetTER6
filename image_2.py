@@ -91,14 +91,14 @@ def angle_descriptor(objects) -> list[float]:
     angleHist = {k: v / nbCouplesPoints for k,v in angleHist.items()}
 
     # 4) Compute the compability of the distribution (the histogram) to each of the 4 fuzzy sets (one for each direction)
-    #       Right :     cos^2 on [-pi/2 ; +pi/2]
-    #       Left :      cos^2 on [-pi ; -pi/2] u [+pi/2 ; +pi]
-    #       Above :     sin^2 on [-pi ; 0]
-    #       Under :     sin^2 on [0 ; +pi]
+    #       Right :     angle in [-pi/2 ; +pi/2]
+    #       Left :      angle in [-pi ; -pi/2] u [+pi/2 ; +pi]
+    #       Above :     angle in [-pi ; 0]
+    #       Under :     angle in [0 ; +pi]
     #   (see the paper "Spatial Organization in 2D images", Fig. 5 in chapter III. A)
-    directionsCompability = dict()
+    directionsCompatibility = dict()
     for direction in ["Right", "Left", "Above", "Under"]:
-        directionsCompability[direction] = 0
+        directionsCompatibility[direction] = 0
 
     for angle, angleFrequency in angleHist.items():
         cos2value = math.cos(angle)**2
@@ -106,19 +106,19 @@ def angle_descriptor(objects) -> list[float]:
 
         # Right or Left
         if angle > -math.pi / 2 and angle < math.pi / 2:
-            directionsCompability["Right"] += cos2value * angleFrequency
+            directionsCompatibility["Right"] += cos2value * angleFrequency
         else:
-            directionsCompability["Left"] += cos2value * angleFrequency
+            directionsCompatibility["Left"] += cos2value * angleFrequency
 
         # Above or Under
         if angle < 0:
-            directionsCompability["Above"] += sin2value * angleFrequency
+            directionsCompatibility["Above"] += sin2value * angleFrequency
         else:
-            directionsCompability["Under"] += sin2value * angleFrequency
+            directionsCompatibility["Under"] += sin2value * angleFrequency
 
-    #print(directionsCompability)
+    #print(directionsCompatibility)
 
-    return list(directionsCompability.values())
+    return list(directionsCompatibility.values())
 
 def image_processing_v2(imagename, background, step, force_type):
     """
