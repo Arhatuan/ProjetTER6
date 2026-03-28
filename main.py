@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import time
 import numpy as np
+import re
 
 PATH_DB_SIMPLESHAPES1 = os.path.join(Path(__file__).parent, "images", "SimpleShapes1")
 PATH_DB_SIMPLESHAPES2 = os.path.join(Path(__file__).parent, "images", "SimpleShapes2")
@@ -34,7 +35,8 @@ def parse_args():
     parser.add_argument("-d", "--descriptors",
                         nargs="*",
                         type=lambda string: str.split(string, '+'),
-                        metavar="{RLM,FORCE,DIST,ANGLE}",
+                        default=[["RLM", "F2"]],
+                        metavar="{RLM,F0,F2,DIST,ANGLE}",
                         help="Characteristics (or descriptors) to use. You can give multiple combinations. (f. ex. 'rlm+force rlm+dist+angle')")
     
     parser.add_argument("-f", "--force",
@@ -81,9 +83,10 @@ def parse_args():
                 case "FORCE": new_list_descriptors.append(ModelLearning2.descriptors.FORCE)
                 case "DIST": new_list_descriptors.append(ModelLearning2.descriptors.DISTANCE)
                 case "ANGLE": new_list_descriptors.append(ModelLearning2.descriptors.ANGLES)
-                case _: parser.error(f"Unknown descriptor '{descriptor}' in the list '{listDescriptors}'")
+                case _ if (m := re.match(r"^f(-?\d+(\.\d+)?)$", str.lower(descriptor))):
+                    new_list_descriptors.append(str.lower(descriptor))
+                case _: parser.error(f"Unknown descriptor '{descriptor}' in the list {listDescriptors}")
         descriptorsLayout.append(new_list_descriptors)
-    
     
     return (path_db, annotations, classifiers, descriptorsLayout, args.force, args.nb_dir)
 
@@ -107,6 +110,7 @@ if __name__ == '__main__':
 
     unique_descriptors_to_compute = list(set([descriptor for descriptors_list in descriptorsLayout for descriptor in descriptors_list]))
     global_results = dict()
+    global_matrices = dict()
 
     # 2) Compute the descriptors values, the annotations, and the results for each nb_directions / descriptors_combination / classifier
     for nb_directions in nb_directions_list:
@@ -118,9 +122,10 @@ if __name__ == '__main__':
         descriptors_values, Y1 = ModelLearning2.compute_descriptors_and_Y_data_on_SimpleShape(path_db, annotations, (68, 1, 84, 255), 3, force, unique_descriptors_to_compute, nb_directions)
         print("\tTime taken : {:.1f}s".format(time.time() - timeStart))
 
-        results_descriptors_per_classifier = ResultsComputing.compute_results_for_descriptors_combinations_and_classifiers(descriptors_values, descriptorsLayout, classifiers, Y1)
+        results_descriptors_per_classifier, matrices_descriptors_per_classifier = ResultsComputing.compute_results_for_descriptors_combinations_and_classifiers(descriptors_values, descriptorsLayout, classifiers, Y1, nb_directions)
 
         global_results[nb_directions] = results_descriptors_per_classifier
+        global_matrices[nb_directions] = matrices_descriptors_per_classifier
 
 
     # 4) Show the results
@@ -135,6 +140,7 @@ if __name__ == '__main__':
                 strClassifier = "{} : ".format(classifier.capitalize())
                 print("\t\t- {:<25}\t {:.2f} ± {:.2f}".format(strClassifier, scores.mean(), scores.std()))
 
-    
+    ResultsComputing.write_results_in_file(global_results, path_db.split(os.path.sep)[-1], global_matrices)
+
     # with open("annotations/SpatialSense", 'r') as f:
     #     SpatialSense = json.load(f)

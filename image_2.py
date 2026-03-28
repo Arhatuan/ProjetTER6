@@ -120,6 +120,68 @@ def angle_descriptor(objects) -> list[float]:
 
     return list(directionsCompatibility.values())
 
+
+def forces_v2(objects, diameters, list_forces: list[float]) -> dict[float, list[float]]:
+    """Compute forces between the objects.
+
+    Args:
+        objects: list of two 2D binary list. (binary masks of both of the objects).
+        diameters: list of diameters from the middle point to compute forces from.
+        list_forces (list[float]): list of force degrees that we have to compute for each radial line.
+
+    Returns:
+        forces_values (dict[float, list[float]]): for each force degree given as parameter, return a list of forces values (for each radial diameter)
+    """
+    travels = []
+    for line in diameters:
+        line_travel = []
+        for pt in line:
+            if 0 <= pt[0] < len(objects[1]) and 0 <= pt[1] < len(objects[1][0]) and objects[1][pt[0]][pt[1]]:
+                line_travel.append("A")
+            elif 0 <= pt[0] < len(objects[0]) and 0 <= pt[1] < len(objects[0][0]) and objects[0][pt[0]][pt[1]]:
+                line_travel.append("B")
+            else:
+                line_travel.append("_")
+        travels.append(line_travel)
+
+    # We define the functions to compute the force value. It depends on the force degree :
+    function_force = {
+        0.0: lambda d, force: d,
+        1.0: lambda d, force: (d+2)*math.log(d+2) - 2*(d+1)*math.log(d+1) + d*math.log(d),
+        2.0: lambda d, force: math.log(pow(d+1, 2) / (d * (d+2))),
+    }
+    # There's also a default function for any force degree different than 0, 1 or 2 :
+    default_function_force = lambda d, force: (1/((force-1)*(2-force))) * ( pow(d+1, 2-force) - pow(d, 2-force) - pow(d+2, 2-force) + pow(d+1, 2-force) )
+
+    # for force in list_forces:
+    #     match force:
+    #         case 0: fct_force = lambda d: d
+    #         case 1: fct_force = lambda d: (d+2)*math.log(d+2) - 2*(d+1)*math.log(d+1) + d*math.log(d)
+    #         case 2: fct_force = lambda d: math.log(pow(d+1, 2) / (d * (d+2)))
+    #         case _: fct_force = lambda d: (1/((force-1)*(2-force))) * ( pow(d+1, 2-force) - pow(d, 2-force) - pow(d+2, 2-force) + pow(d+1, 2-force) )
+    
+    forces = dict()
+    for force in list_forces:
+        forces[force] = []
+
+    for i, fline in enumerate(travels):
+        for force in forces:
+            forces[force].append(0) # for each force degree, initialize the total force value for a particular radial diameter
+
+        if 'A' in fline and 'B' in fline:
+            for p in range(len(fline)):
+                if fline[p] == 'A':
+                    for r in range(p, len(fline)):
+                        if fline[r] == 'B':
+                            dist = int(math.dist((diameters[i][p][0], diameters[i][p][1]), (diameters[i][r][0], diameters[i][r][1])))
+
+                            for force in list_forces:
+                                forces[force][i] += function_force.get(force, default_function_force)(dist, force)
+                                # for each force degree, cumulate the total force for a particular radial diameter
+    
+    return forces
+
+
 def image_processing_v2(imagename, background, step, force_type):
     """
     Compute from an image, the RLM of the first and the second object and forces histogram.
@@ -140,19 +202,20 @@ def image_processing_v2(imagename, background, step, force_type):
     return rlm1, rlm2, force, dist1, dist2, angles
 
 
-def image_processing_v3(imagename, background, step, force_type, 
-                        computeRLM: bool = False, computeForce: bool = False,
+def image_processing_v3(imagename, background, step, 
+                        list_forces: list[float] = [], computeRLM: bool = False,
                         computeDist: bool = False, computeAngles: bool = False):
-    rlm1, rlm2, force = [], [], []
+    rlm1, rlm2, forces = [], [], dict()
     dist1, dist2, angles = [], [], []
 
     objects = ImageRLM.image_segmentation(imagename, background)
     x, y = ImageRLM.center_point(objects)
     lines, diameters = ImageRLM.lines_diameters(objects, x, y, step * math.pi / 180)
 
-    if computeRLM:      rlm1, rlm2 = ImageRLM.radial_line_model(lines, objects)
-    if computeForce:    force = ImageRLM.forces(objects, diameters, force_type)
-    if computeDist:     dist1, dist2 = distance_descriptors(objects, x, y, lines)
-    if computeAngles:   angles = angle_descriptor(objects)
+    if computeRLM:              rlm1, rlm2 = ImageRLM.radial_line_model(lines, objects)
+    if len(list_forces) > 0:    forces = forces_v2(objects, diameters, list_forces)
+    if computeDist:             dist1, dist2 = distance_descriptors(objects, x, y, lines)
+    if computeAngles:           angles = angle_descriptor(objects)
     
-    return rlm1, rlm2, force, dist1, dist2, angles
+    return rlm1, rlm2, forces, dist1, dist2, angles
+

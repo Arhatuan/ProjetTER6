@@ -1,6 +1,7 @@
 import image_2 as Image2
 import types
 import numpy as np
+import re
 
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -114,7 +115,7 @@ def print_current_state_computing_descriptors(nb: int, total_length: int, img_na
     if nb == total_length: print() # to cancel the last carriage return character '\r'
 
 def compute_descriptors_and_Y_data_on_SimpleShape(folder, annotations, background, step, force, descriptors_list, nb_directions):
-    descriptorsValues = { k:[] for k in list(descriptors.__dict__.values())}
+    descriptorsValues = { k:[] for k in set(descriptors.__dict__.values()) | set(descriptors_list)}
     Y_data = []
     total_length = len(annotations)
 
@@ -123,6 +124,16 @@ def compute_descriptors_and_Y_data_on_SimpleShape(folder, annotations, backgroun
         case 4: tested_directions = SIMPLESHAPES_CLASSES_4
         case 8: tested_directions = SIMPLESHAPES_CLASSES_8
         case _: raise ValueError(f"Unsupported number of directions to test : {nb_directions}")
+
+    # Get the list of force degrees
+    pattern = r"^f(-?\d+(\.\d+)?)$"
+    forces_degrees = []
+    forces_descriptors = []
+    for descriptor in descriptors_list:
+        match = re.match(pattern, descriptor)
+        if match:
+            forces_degrees.append(float(match.group(1)))
+            forces_descriptors.append(descriptor)
 
     for i, row in enumerate(annotations):
     
@@ -136,17 +147,21 @@ def compute_descriptors_and_Y_data_on_SimpleShape(folder, annotations, backgroun
 
             img_name = f"{folder}/img-{row['obj1']}-{row['obj2']}-{row['nb']}.png"
             rlm1, rlm2, forces, dist1, dist2, angles = Image2.image_processing_v3(
-                                                            img_name, background, step, force,
+                                                            img_name, background, step, 
+                                                            list_forces=    forces_degrees,
                                                             computeRLM=     descriptors.RLM in descriptors_list,
-                                                            computeForce=   descriptors.FORCE in descriptors_list,
                                                             computeDist=    descriptors.DISTANCE in descriptors_list or descriptors.DIST_MAX in descriptors_list,
                                                             computeAngles=  descriptors.ANGLES in descriptors_list)
             
+
             descriptorsValues[descriptors.RLM].append( (rlm1 + rlm2) )
-            descriptorsValues[descriptors.FORCE].append( forces )
+            #descriptorsValues[descriptors.FORCE].append( forces )
             descriptorsValues[descriptors.DIST1].append( dist1 )
             descriptorsValues[descriptors.DIST2].append( dist2 )
             descriptorsValues[descriptors.ANGLES].append( angles )
+
+            for force_descriptor, force_degree in zip(forces_descriptors, forces_degrees):
+                descriptorsValues[force_descriptor].append( forces[force_degree] )
 
             Y_data.append(row["rel"])
     
@@ -164,6 +179,8 @@ def compute_X_data_from_descriptors(descriptors_values: dict, descriptors_list: 
                 case descriptors.DISTANCE:  sum_descriptors.extend( descriptors_values[descriptors.DIST1][i] + descriptors_values[descriptors.DIST2][i] )
                 case descriptors.DIST_MAX:  sum_descriptors.extend( max( descriptors_values[descriptors.DIST1][i], descriptors_values[descriptors.DIST2][i] ) )
                 case descriptors.ANGLES:    sum_descriptors.extend( descriptors_values[descriptors.ANGLES][i] )
+            
+        
         X_data.append(sum_descriptors)
 
     return X_data
