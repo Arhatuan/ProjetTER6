@@ -93,7 +93,7 @@ def _compute_angle_histogram(objects) -> dict[float, int]:
 
     return angleHist
 
-def angle_descriptor(objects, compute_8_directions = True) -> tuple[list[float], list[float]]:
+def angle_descriptor(objects, compute_8_directions = False) -> tuple[list[float], list[float]]:
     """Compute the angle descriptor, for the 4 cardinal directions and for 8 directions (+ diagonal directions)
 
     Args:
@@ -120,6 +120,7 @@ def angle_descriptor(objects, compute_8_directions = True) -> tuple[list[float],
     cardinal_directions = list(cardinal_directions.values())
     if diagonal_directions is not None:
         diagonal_directions = list(diagonal_directions.values())
+
         # We want the 8 values inside a single list
         diagonal_directions = cardinal_directions + diagonal_directions
     
@@ -152,7 +153,7 @@ def _compute_angle_descriptor_4_cardinal_directions(angleHist: dict) -> dict[str
         sin2value = math.sin(angle)**2
 
         # Right or Left
-        if angle > -math.pi / 2 and angle < math.pi / 2:
+        if -math.pi / 2 < angle < math.pi / 2:
             directionsCompatibility["Right"] += cos2value * angleFrequency
         else:
             directionsCompatibility["Left"] += cos2value * angleFrequency
@@ -314,7 +315,7 @@ def image_processing_v4(imagename, background, step,
     if descriptorsParameters.computeRLM:              results.rlm1, results.rlm2 = ImageRLM.radial_line_model(lines, objects)
     if len(descriptorsParameters.force_degrees) > 0:  results.forces = forces_v2(objects, diameters, descriptorsParameters.force_degrees)
     if descriptorsParameters.computeDist:             results.dist1, results.dist2 = distance_descriptors(objects, x, y, lines)
-    if descriptorsParameters.computeAngles:           results.angles, _ = angle_descriptor(objects)
+    if descriptorsParameters.computeAngles:           results.angles, results.angles8 = angle_descriptor(objects, compute_8_directions = descriptorsParameters.computeAngles8)
     
     return results
 

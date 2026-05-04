@@ -7,6 +7,7 @@ class Descriptor(Enum):
     #   So it is taken separately
     DISTANCE = "distance"
     ANGLES = "angles"
+    ANGLES8 = "angles8"
 
 FORCE_REGEX = r"^f(-?\d+(\.\d+)?)$"
 """The regex to recognize a force ('f2', 'f0', 'f1.3', 'f-0.5', ... )"""

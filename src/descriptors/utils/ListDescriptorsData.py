@@ -11,12 +11,13 @@ class ListDescriptorsData:
     dist1: list
     dist2: list
     angles: list
+    angles8: list
 
     def __init__(self):
         self.rlm = []
         self.force = dict()
         self.dist1, self.dist2 = [], []
-        self.angles = []
+        self.angles, self.angles8 = [], []
 
     def add_descriptors_data_from_one_image(self, descriptors_data: DescriptorsData, descriptors_parameters: DescriptorsParameters):
         """Add the descriptors's data from one singular image to the lists of data
@@ -29,6 +30,7 @@ class ListDescriptorsData:
         self.dist1.append( descriptors_data.dist1 )
         self.dist2.append( descriptors_data.dist2 )
         self.angles.append( descriptors_data.angles )
+        self.angles8.append( descriptors_data.angles8 )
 
         for force_descriptor, force_degree in zip(descriptors_parameters.force_descriptors, descriptors_parameters.force_degrees):
             self.force.setdefault(force_descriptor, []).append(descriptors_data.forces[force_degree])
@@ -58,6 +60,7 @@ class ListDescriptorsData:
                     case Descriptor.RLM: sum_descriptors.extend( self.rlm[i] )
                     case Descriptor.DISTANCE: sum_descriptors.extend( self.dist1[i] + self.dist2[i] )
                     case Descriptor.ANGLES: sum_descriptors.extend( self.angles[i] )
+                    case Descriptor.ANGLES8: sum_descriptors.extend( self.angles8[i] )
                     #case _: raise ValueError(f"Unsupported descriptor (for computing X data) : {descriptor}")
 
                 if descriptor in force_descriptors:

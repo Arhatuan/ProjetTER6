@@ -18,10 +18,12 @@ class DescriptorsData:
 
     angles: list[float]
     """Angles data : probabilities of belonging to either "Right", "Left", "Above", "Under" directions (4 values in total)"""
+    angles8: list[float]
+    """Angles data : probabilities of belonging to either 'Right', 'Left', 'Above', 'Under', 'Above right', 'Above left', 'Under left', 'Under right' (in this order)"""
 
 
     def __init__(self):
         self.rlm1, self.rlm2 = [], []
         self.forces = dict()
         self.dist1, self.dist2 = [], []
-        self.angles = []
+        self.angles, self.angles8 = [], []

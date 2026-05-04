@@ -32,7 +32,7 @@ def parse_args() -> Parameters:
                         nargs="*",
                         type=lambda string: str.split(string, '+'),
                         default=[["RLM", "F2"]],
-                        metavar="{RLM,F0,F2,DIST,ANGLE}",
+                        metavar="{RLM,F0,F2,DIST,ANGLE,ANGLE8}",
                         help="Descriptors to use. You can give multiple combinations (for ex. 'rlm+f2 rlm+dist+angle')")
     
     parser.add_argument("-n", "--nb_dir",
@@ -67,6 +67,7 @@ def parse_args() -> Parameters:
                 case "RLM": list_combination_descriptors.append(Descriptor.RLM)
                 case "DIST": list_combination_descriptors.append(Descriptor.DISTANCE)
                 case "ANGLE": list_combination_descriptors.append(Descriptor.ANGLES)
+                case "ANGLE8": list_combination_descriptors.append(Descriptor.ANGLES8)
                 case _ if (m := re.match(FORCE_REGEX, str.lower(descriptor))):
                     list_combination_descriptors.append(str.lower(descriptor))
                 case _: parser.error(f"Unknown descriptor '{descriptor}' in the list {listDescriptors}")
