@@ -51,19 +51,19 @@ def distance_descriptors(objects, x, y, lines) -> tuple[list[float], list[float]
     return (dist1, dist2)
 
 
-def angle_descriptor(objects) -> list[float]:
-    """Based of the angles of every (point in object A, point in object B) couples of point,
-    compute probabilities of belonging to either "Right", "Left", "Above", "Under" directions.
+def _compute_angle_histogram(objects) -> dict[float, int]:
+    """Compute the histogram of angles θ :
+    each θ between two points from objects A and B is associated to a frequency (how much it appears).
 
     Args:
-        objects: objects to compute data from.
+        objects: objects to compute the angle histogram from.
 
     Returns:
-        probabilities (list[float]): probabilities for "Right", "Left", "Above" and "Under" (in this order)
+        histogram (dict[float, int]): the angle histogram (θ, frequencyθ) for each existing θ
     """
-
     # 0) Reduce the image's size so that there aren't too much couples of pixels to compute the angles
     #       (or else it takes seconds to compute, instead of milliseconds)
+    #  (maybe it's better to just simply take a specific number of samples from objects A and B instead of resizing...)
     objectA = objects[0]
     objectB = objects[1]
     nbCouplesPointsInitial = len(objectA[objectA == True]) * len(objectB[objectB == True])
@@ -72,7 +72,6 @@ def angle_descriptor(objects) -> list[float]:
         ratioResize = 1/4
         objectA = cv.resize(objectA.astype("uint8"), dsize=(int(objectA.shape[0] * ratioResize), int(objectA.shape[1] * ratioResize))).astype("bool")
         objectB = cv.resize(objectB.astype("uint8"), dsize=(int(objectB.shape[0] * ratioResize), int(objectB.shape[1] * ratioResize))).astype("bool")
-
 
     # 1) Get the (x,y) coordinates of the points in each of the 2 objects
     pointsObjectA = np.argwhere(objectA == True)
@@ -92,12 +91,58 @@ def angle_descriptor(objects) -> list[float]:
     nbCouplesPoints = len(pointsObjectA) * len(pointsObjectB)
     angleHist = {k: v / nbCouplesPoints for k,v in angleHist.items()}
 
-    # 4) Compute the compability of the distribution (the histogram) to each of the 4 fuzzy sets (one for each direction)
-    #       Right :     angle in [-pi/2 ; +pi/2]
-    #       Left :      angle in [-pi ; -pi/2] u [+pi/2 ; +pi]
-    #       Above :     angle in [-pi ; 0]
-    #       Under :     angle in [0 ; +pi]
-    #   (see the paper "Spatial Organization in 2D images", Fig. 5 in chapter III. A)
+    return angleHist
+
+def angle_descriptor(objects, compute_8_directions = True) -> tuple[list[float], list[float]]:
+    """Compute the angle descriptor, for the 4 cardinal directions and for 8 directions (+ diagonal directions)
+
+    Args:
+        objects: the objects from which we compute the angle descriptor
+        compute_8_directions (bool, optional): flag for computing 8 directions (+ diagonal directions). Defaults to False.
+
+    Returns:
+        4directions, 8directions (tuple[list[float], list[float]]): compatibilities for 4 directions, and for 8 directions
+    """
+    # 1) Compute the angle histogram
+    angleHist = _compute_angle_histogram(objects)
+
+    # 2) Compute the descriptors for the 4 cardinal directions and the 4 diagonal directions
+    cardinal_directions = _compute_angle_descriptor_4_cardinal_directions(angleHist)
+
+    diagonal_directions = None
+    if compute_8_directions:
+        diagonal_directions = _compute_angle_descriptor_4_diagonal_directions(angleHist)
+
+    # print(cardinal_directions)
+    # print(diagonal_directions)
+
+    # 3) Simplify to lists (without labels)
+    cardinal_directions = list(cardinal_directions.values())
+    if diagonal_directions is not None:
+        diagonal_directions = list(diagonal_directions.values())
+        # We want the 8 values inside a single list
+        diagonal_directions = cardinal_directions + diagonal_directions
+    
+    return (cardinal_directions, diagonal_directions)
+
+def _compute_angle_descriptor_4_cardinal_directions(angleHist: dict) -> dict[str, float]:
+    """Based of the angles of every (point in object A, point in object B) couples of point,
+    compute probabilities of belonging to either "Right", "Left", "Above", "Under" directions.
+
+    Args:
+        angleHist (dict): the angle histogram such as (θ, frequency θ) for each existing θ
+
+    Returns:
+        probabilities (dict[str, float]): probabilities for "Right", "Left", "Above" and "Under" (in this order)
+    """
+
+    # Compute the compatibility of the distribution (the histogram) to each of the 4 fuzzy sets (one for each direction)
+    #     Right       [centered on 0]      θ in [-π/2 ; +π/2]                on cos2(θ)
+    #     Left        [centered on π]      θ in [-π ; -π/2] u [+π/2 ; +π]    on cos2(θ)
+    #     Above       [centered on -π/2]   θ in [-π ; 0]                     on sin2(θ)
+    #     Under       [centered on π/2]    θ in [0 ; +π]                     on sin2(θ)
+    #  (see the paper "Spatial Organization in 2D images", Fig. 5 in chapter III. A)
+    
     directionsCompatibility = dict()
     for direction in ["Right", "Left", "Above", "Under"]:
         directionsCompatibility[direction] = 0
@@ -118,9 +163,46 @@ def angle_descriptor(objects) -> list[float]:
         else:
             directionsCompatibility["Under"] += sin2value * angleFrequency
 
-    #print(directionsCompatibility)
+    return directionsCompatibility
 
-    return list(directionsCompatibility.values())
+def _compute_angle_descriptor_4_diagonal_directions(angleHist: dict) -> dict[str, float]:
+    """Based on the angles of every (point in object A, point in object B) couples of points,
+    compute probabilities of belonging to either "Above right", "Above left", "Under left" and "Under right" (in this order)
+
+    Args:
+        angleHist (dict): the angle histogram such as (θ, frequency θ) for each existing θ
+
+    Returns:
+        probabilities (dict[str, float]): probabilities for "Above right", "Above left", "Under left" and "Under right" (in this order)
+    """
+    
+    # For the 4 diagonal directions, we simply adjust the sinusoid to be centered on the θ corresponding to the direction
+    #     Above right [centered on -π/4]   θ in [-3π/4 ; +π/4]               on cos2(θ + π/4)
+    #     Under left  [centered on 3π/4]   θ in [-π ; -3π/4] u [+π/4 ; +π]   on cos2(θ + π/4)
+    #     Under right [centered on π/4]    θ in [-π/4 ; +3π/4]               on cos2(θ - π/4)
+    #     Above left  [centered on -3π/4]  θ in [-π; -π/4] u [+3π/4 ; +π]    on cos2(θ - π/4)
+    
+    directionsCompatibility = dict()
+    for direction in ["Above right", "Above left", "Under left", "Under right"]:
+        directionsCompatibility[direction] = 0
+
+    for angle, angleFrequency in angleHist.items():
+        cos2_minus_piover4 = math.cos(angle - math.pi/4)**2
+        cos2_plus_piover4 = math.cos(angle + math.pi/4)**2
+
+        # Above right or Under left
+        if (-3/4)*math.pi < angle < math.pi / 4:
+            directionsCompatibility["Above right"] += cos2_plus_piover4 * angleFrequency
+        else:
+            directionsCompatibility["Under left"] += cos2_plus_piover4 * angleFrequency
+
+        # Under right or Above left
+        if -math.pi / 4 < angle < (3/4)*math.pi:
+            directionsCompatibility["Under right"] += cos2_minus_piover4 * angleFrequency
+        else:
+            directionsCompatibility["Above left"] += cos2_minus_piover4 * angleFrequency
+
+    return directionsCompatibility
 
 
 def forces_v2(objects, diameters, list_forces: list[float]) -> dict[float, list[float]]:
@@ -232,7 +314,7 @@ def image_processing_v4(imagename, background, step,
     if descriptorsParameters.computeRLM:              results.rlm1, results.rlm2 = ImageRLM.radial_line_model(lines, objects)
     if len(descriptorsParameters.force_degrees) > 0:  results.forces = forces_v2(objects, diameters, descriptorsParameters.force_degrees)
     if descriptorsParameters.computeDist:             results.dist1, results.dist2 = distance_descriptors(objects, x, y, lines)
-    if descriptorsParameters.computeAngles:           results.angles = angle_descriptor(objects)
+    if descriptorsParameters.computeAngles:           results.angles, _ = angle_descriptor(objects)
     
     return results
 
