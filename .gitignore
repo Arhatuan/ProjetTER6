@@ -2,6 +2,7 @@ test.py
 annotations
 images
 results
+savedDescriptors
 
 
 # Byte-compiled / optimized / DLL files

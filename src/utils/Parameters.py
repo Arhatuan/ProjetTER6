@@ -16,12 +16,16 @@ class Parameters:
     nb_radial_lines: int
     """The number of radial lines"""
 
+    filename: str
+    """Option for when its necessary to give a filename (for example when loading a computed descriptors file)"""
+
     def __init__(self):
         self.database = None
         self.classifiers = []
         self.descriptors_layout = []
         self.nb_directions = []
         self.nb_radial_lines = 120
+        self.filename = None
 
 
     # SETTERS

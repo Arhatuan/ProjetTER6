@@ -6,11 +6,11 @@ from src.descriptors.utils.DescriptorEnum import Descriptor, FORCE_REGEX
 from src.utils.Parameters import Parameters
 from src import manager
 
-def parse_args() -> Parameters:
+def parse_args() -> tuple[Parameters, manager.ManagerOptions]:
     """Parse arguments to decide the parameters of the program (classifiers, database, descriptors, number of directions...)
 
     Returns:
-        Parameters: the parameters enclosed in a `Parameters` instance
+        parameters, manager option (Parameters, ManagerOptions): the parameters enclosed in a `Parameters` instance, and the manager option to apply the wanted process (Default, Save or Load)
     """
 
     parser = argparse.ArgumentParser()
@@ -41,6 +41,15 @@ def parse_args() -> Parameters:
                         choices=[4,8],
                         default=[4],
                         help="The number of directions to evaluate. Either 4 or 8. Choose the 2 of them for computing results for both of them separately. Default = 4 only")
+    
+    parser.add_argument("--SAVE", "--save",
+                        action="store_true",
+                        help="Flag for saving the computed descriptors into a file (it does not compute the results)")
+    
+    parser.add_argument("--LOAD", "--load",
+                        default=None,
+                        metavar="filename",
+                        help="Indicate the file containing computed descriptors, from which to compute results from whatever wanted descriptors's combinations and classifiers")
     
     args = parser.parse_args()
 
@@ -82,12 +91,21 @@ def parse_args() -> Parameters:
             case 8: parameters.add_nb_directions(8)
             case _: parser.error(f"Unsupported number of directions : {nb_dir}")
 
-    return parameters
+    # Decide the manager option
+    manager_option = manager.ManagerOptions.DEFAULT
+    if args.SAVE:
+        manager_option = manager.ManagerOptions.SAVE
+    if args.LOAD:
+        manager_option = manager.ManagerOptions.LOAD
+        parameters.filename = args.LOAD # read the filename given
+    
+
+    return parameters, manager_option
 
 
 
 if __name__ == "__main__":
     # Get the arguments from the command line
-    parameters = parse_args()
+    parameters, manager_option = parse_args()
     # Launch the program with the arguments as parameters
-    manager.manage(parameters)
+    manager.manage(parameters, manager_option)
