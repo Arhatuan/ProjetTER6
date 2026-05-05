@@ -1,4 +1,4 @@
-from ..utils.enumerations import Classifier, SimpleShapesClasses
+from ..utils.enumerations import Classifier, LabelDirection
 from .ComputeDescriptorsFromDatabase import ComputeDescriptorsFromDatabase
 from ..utils.Parameters import Parameters
 from ..utils.utils import get_key_descriptors_combination
@@ -77,8 +77,8 @@ class ComputeResults:
         timeStart = time.time()
 
         match nb_directions:
-            case 4: labels = SimpleShapesClasses.CLASSES_4.value
-            case 8: labels = SimpleShapesClasses.CLASSES_8.value
+            case 4: labels = computedDescriptors.labels4directions
+            case 8: labels = computedDescriptors.labels8directions
             case _: raise ValueError(f"Unsuported number of directions for labels : {nb_directions}")
 
         for i, descriptors_combination in enumerate(parameters.descriptors_layout):
@@ -91,7 +91,7 @@ class ComputeResults:
             self.matrices[key_descriptors_combination] = dict()
 
             for j, classifier in enumerate(parameters.classifiers):
-                self.__print_current_state_computing_results(i*2+j+1, total_nb_descriptors_combinations)
+                #self.__print_current_state_computing_results(i*2+j+1, total_nb_descriptors_combinations)
                 
                 try:
                     # 1) Get a trained model
@@ -105,6 +105,9 @@ class ComputeResults:
                     Y_predictions = clf.predict(X_data)
                     conf_matrix = confusion_matrix(computedDescriptors.Y_data, Y_predictions, labels=labels)
                     self.matrices[key_descriptors_combination][classifier] = conf_matrix
+
+                    print()
+                    print(conf_matrix)
                 
                 except Exception as e:
                     # Error when training a model -> default to result = 0.00

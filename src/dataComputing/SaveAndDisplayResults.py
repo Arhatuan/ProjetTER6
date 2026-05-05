@@ -22,6 +22,7 @@ class SaveAndDisplayResults(DisplayResults):
         match database:
             case Database.S1: filename = "S1_results_"
             case Database.S2: filename = "S2_results_"
+            case Database.SIG: filename = "SIG_results_"
             case _: filename = "unknownDB_results_"
         filename += time.strftime("%Y_%m_%d_%Hh%Mm%S")
 
