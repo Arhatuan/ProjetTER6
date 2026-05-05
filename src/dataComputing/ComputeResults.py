@@ -91,7 +91,7 @@ class ComputeResults:
             self.matrices[key_descriptors_combination] = dict()
 
             for j, classifier in enumerate(parameters.classifiers):
-                #self.__print_current_state_computing_results(i*2+j+1, total_nb_descriptors_combinations)
+                self.__print_current_state_computing_results(i*2+j+1, total_nb_descriptors_combinations)
                 
                 try:
                     # 1) Get a trained model
@@ -105,9 +105,6 @@ class ComputeResults:
                     Y_predictions = clf.predict(X_data)
                     conf_matrix = confusion_matrix(computedDescriptors.Y_data, Y_predictions, labels=labels)
                     self.matrices[key_descriptors_combination][classifier] = conf_matrix
-
-                    print()
-                    print(conf_matrix)
                 
                 except Exception as e:
                     # Error when training a model -> default to result = 0.00
