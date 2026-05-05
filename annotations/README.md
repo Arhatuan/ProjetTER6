@@ -1,1 +1,6 @@
-Put ***'SimpleShapes1.csv'*** and ***'SimpleShapes2.csv'*** annotation files here (you may have them under slightly different names, so rename them to that)
+Put annotations files here with the following names:
+
+* `SimpleShapes1.csv`
+* `SimpleShapes2.csv`
+* `SIG.csv`
+* `SharvitSR_annotations.csv`

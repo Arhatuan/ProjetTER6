@@ -23,10 +23,10 @@ def parse_args() -> Parameters:
                         help="Classifier to use. Choices are : MLP (Multi-layer Perceptron), RF (Random Forests). Default = MLP")
     
     parser.add_argument("--db", "--database",
-                        choices=["S1", "S2", "SIG"],
+                        choices=["S1", "S2", "SIG", "SH"],
                         default="S1",
                         type=str.upper,
-                        help="Database to use. Choices are : S1 (SimpleShapes1), S2 (SimpleShapes2), SIG. Default = S1")
+                        help="Database to use. Choices are : S1 (SimpleShapes1), S2 (SimpleShapes2), SIG, SH (SharvitSR). Default = S1")
     
     parser.add_argument("-d", "--descriptors",
                         nargs="*",
@@ -51,6 +51,7 @@ def parse_args() -> Parameters:
         case "S1": parameters.set_database(Database.S1)
         case "S2": parameters.set_database(Database.S2)
         case "SIG": parameters.set_database(Database.SIG)
+        case "SH": parameters.set_database(Database.SHARVITSR)
         case _: parser.error(f"Unsupported database : '{args.db}'")
 
     # Decide the classifier(s) to train a model on
@@ -90,4 +91,3 @@ if __name__ == "__main__":
     parameters = parse_args()
     # Launch the program with the arguments as parameters
     manager.manage(parameters)
-

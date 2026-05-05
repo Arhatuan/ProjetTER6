@@ -29,8 +29,7 @@ class DescriptorsParameters:
         
         self.computeRLM = Descriptor.RLM in unique_descriptors
         self.computeDist = Descriptor.DISTANCE in unique_descriptors
-        self.computeAngles = Descriptor.ANGLES or Descriptor.ANGLES8 in unique_descriptors
+        self.computeAngles = Descriptor.ANGLES in unique_descriptors or Descriptor.ANGLES8 in unique_descriptors
         self.computeAngles8 = Descriptor.ANGLES8 in unique_descriptors
 
         self.nb_radial_lines = parameters.nb_radial_lines
-

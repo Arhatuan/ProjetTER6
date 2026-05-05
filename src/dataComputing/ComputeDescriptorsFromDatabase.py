@@ -12,10 +12,12 @@ from ..descriptors.utils.ListDescriptorsData import ListDescriptorsData
 PATH_DB_SIMPLESHAPES1 = os.path.join(Path(__file__).parent.parent.parent, "images", "SimpleShapes1")
 PATH_DB_SIMPLESHAPES2 = os.path.join(Path(__file__).parent.parent.parent, "images", "SimpleShapes2")
 PATH_DB_SIG = os.path.join(Path(__file__).parent.parent.parent, "images", "SIG")
+PATH_DB_SHARVITSR = os.path.join(Path(__file__).parent.parent.parent, "images", "SharvitSR")
 
 PATH_ANNOTATIONS_SIMPLESHAPES1 = os.path.join(Path(__file__).parent.parent.parent, "annotations", "SimpleShapes1.csv")
 PATH_ANNOTATIONS_SIMPLESHAPES2 = os.path.join(Path(__file__).parent.parent.parent, "annotations", "SimpleShapes2.csv")
 PATH_ANNOTATIONS_SIG = os.path.join(Path(__file__).parent.parent.parent, "annotations", "SIG.csv")
+PATH_ANNOTATIONS_SHARVITSR = os.path.join(Path(__file__).parent.parent.parent, "annotations", "SharvitSR_annotations.csv")
 
 SIMPLESHAPES_BACKGROUND = (68, 1, 84, 255)
 
@@ -85,12 +87,15 @@ class ComputeDescriptorsFromDatabase:
             case Database.SIG:
                 self.path_db = PATH_DB_SIG
                 self.annotations = self.__load_annotations(PATH_ANNOTATIONS_SIG)
+            case Database.SHARVITSR:
+                self.path_db = PATH_DB_SHARVITSR
+                self.annotations = self.__load_annotations(PATH_ANNOTATIONS_SHARVITSR)
             case _: raise ValueError(f"Unsupported database : {database}")
 
     def __set_labels(self, database: Database):
         """Automatically sets the labels for the 4 directions and 8 directions, that are used in the given database's annotations file"""
         match database:
-            case Database.S1 | Database.S2:
+            case Database.S1 | Database.S2 | Database.SHARVITSR:
                 self.labels4directions = LabelDirection.CLASSES_4.value
                 self.labels8directions = LabelDirection.CLASSES_8.value
             case Database.SIG:
@@ -116,6 +121,12 @@ class ComputeDescriptorsFromDatabase:
                                                                     and row['pos'] in tested_directions) # is a tested direction
                 self.getStrImgProcessed = lambda row: f"{row["img_name"]}"
                 self.getGroundTruth = lambda row: row["pos"]
+            case Database.SHARVITSR:
+                self.conditions = lambda row, tested_directions: (row['card'] != "?"
+                                                                    #and row['diff'] != '4' # exclude max difficulty
+                                                                    and row['card'] in tested_directions) # is a tested direction
+                self.getStrImgProcessed = lambda row: f"img-{row['obj1']}-{row['obj2']}.png"
+                self.getGroundTruth = lambda row: row["card"]
             case _: raise ValueError(f"Unsupported database : {database}")
 
 
@@ -181,4 +192,3 @@ class ComputeDescriptorsFromDatabase:
         strProgress = "(progress: {:2.1%})".format(nb/total_length)
         print("{:<16} {:>18}".format(img_name, strProgress), end="\r")
         if nb == total_length: print() # to cancel the last carriage return character '\r'
-

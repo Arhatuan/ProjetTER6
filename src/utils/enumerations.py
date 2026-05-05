@@ -5,6 +5,7 @@ class Database(Enum):
     S1 = "SimpleShapes1"
     S2 = "SimpleShapes2"
     SIG = "SIG"
+    SHARVITSR = "SharvitSR"
     # ...
 
 class Classifier(Enum):
@@ -18,6 +19,5 @@ class LabelDirection(Enum):
     """Labels for the directions used in a similar form in different annotations files"""
     CLASSES_4 = ('Above', 'Under', 'Left', 'Right')
     CLASSES_8 = ('Above', 'Under', 'Left', 'Right', 'Above Left', 'Above Right', 'Under Left', 'Under Right')
-
 
 
