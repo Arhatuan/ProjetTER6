@@ -1,3 +1,5 @@
+import numpy as np
+
 from .DescriptorEnum import Descriptor
 from .DescriptorsData import DescriptorsData
 from .DescriptorsParameters import DescriptorsParameters
@@ -69,3 +71,27 @@ class ListDescriptorsData:
             X_data.append(sum_descriptors)
         
         return X_data
+    
+    def get_instance_filtered_on_indexes(self, indexes: list[int]) -> ListDescriptorsData:
+        """Create a new instance of ListDescriptorsData, with each attribute filtered on the indexes given
+
+        Args:
+            indexes (list[int]): the indexes to keep for each attribute (by filtering)
+
+        Returns:
+            ListDescriptorsData: a new instance after filtering on indexes
+        """
+        new_listDescriptorsData = ListDescriptorsData()
+
+        # 1) Filter on every attribute except force
+        attributes_minus_force = new_listDescriptorsData.__dict__.keys() - ["force"]
+        for attribute in attributes_minus_force:
+            previous_attribute = np.array(getattr(self, attribute))
+            setattr(new_listDescriptorsData, attribute, list(previous_attribute[indexes]))
+        
+        # 2) Filter on every force degree
+        for force_descriptor in self.force.keys():
+            previous_attribute = np.array(self.force[force_descriptor])
+            new_listDescriptorsData.force[force_descriptor] = list(previous_attribute[indexes])
+        
+        return new_listDescriptorsData

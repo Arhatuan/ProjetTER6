@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 import time
 import csv
-from typing import Callable, Any
+from typing import Callable
+import numpy as np
 
 from ..utils.enumerations import Database, LabelDirection
 from ..descriptors import descriptors
@@ -192,3 +193,24 @@ class ComputeDescriptorsFromDatabase:
         strProgress = "(progress: {:2.1%})".format(nb/total_length)
         print("{:<16} {:>18}".format(img_name, strProgress), end="\r")
         if nb == total_length: print() # to cancel the last carriage return character '\r'
+
+
+    def get_instance_from_8_directions_reduced_to_4_directions(self) -> ComputeDescriptorsFromDatabase:
+        """Assuming the data from the current instance was computed for 8 directions, the function returns a new instance with data filtered to be on 4 directions.
+
+        Returns:
+            ComputeDescriptorsFromDatabase: a new instance with data filtered to be on 4 directions only
+        """
+        new_instance = ComputeDescriptorsFromDatabase(self.database)
+
+        # Reduce the annotations to 8 directions (no useless rows), to have indexes correspond to data in 'list_descriptors_data' and 'Y_data'
+        annotations_8_directions = [row for row in self.annotations if self.conditions(row, self.labels8directions)]
+
+        # Get correct indexes for 4 directions (based on annotations for 8 directions)
+        indexes_4_directions = [i for i, row in enumerate(annotations_8_directions) if self.conditions(row, self.labels4directions)]
+
+        # Filter 'list_descriptors_data' and 'Y_data' to the indexes for 4 directions
+        new_instance.list_descriptors_data = self.list_descriptors_data.get_instance_filtered_on_indexes(indexes_4_directions)
+        new_instance.Y_data = list(np.array(self.Y_data)[indexes_4_directions])
+
+        return new_instance

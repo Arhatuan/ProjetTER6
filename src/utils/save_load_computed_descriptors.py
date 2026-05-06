@@ -43,6 +43,14 @@ def save_computed_descriptors(params: Parameters, nb_directions: int, computedDe
     return f"savedDescriptors/{filename}"
 
 def load_computed_descriptors(filename: str) -> tuple[Parameters, int, ComputeDescriptorsFromDatabase]:
+    """Load some data from the 'savedDescriptors' folder
+
+    Args:
+        filename (str): the name of the file to load
+
+    Returns:
+        tuple[Parameters, int, ComputeDescriptorsFromDatabase]: the parameters, the number of directions and the computed descriptors that were saved in the file
+    """
     full_filename = f"{PATH_SAVED_DESCRIPTORS_DIR}/{filename}"
 
     with open(full_filename, "rb") as f:
