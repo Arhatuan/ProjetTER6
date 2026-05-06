@@ -14,10 +14,16 @@ class Classifier(Enum):
     RF = "Random Forests"
     # ...
 
+class ReferencePointMode(Enum):
+    """How the point Rp is selected."""
+    DETERMINISTIC = "deterministic"
+    RANDOM_FULL = "random_full"
+    RANDOM_BORDER = "random_border"
+    RANDOM_CENTER = "random_center"
+
 
 class LabelDirection(Enum):
     """Labels for the directions used in a similar form in different annotations files"""
     CLASSES_4 = ('Above', 'Under', 'Left', 'Right')
     CLASSES_8 = ('Above', 'Under', 'Left', 'Right', 'Above Left', 'Above Right', 'Under Left', 'Under Right')
-
 

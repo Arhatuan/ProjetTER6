@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from src.utils.enumerations import Database, Classifier
+from src.utils.enumerations import Database, Classifier, ReferencePointMode
 from src.descriptors.utils.DescriptorEnum import Descriptor, FORCE_REGEX
 from src.utils.Parameters import Parameters
 from src import manager
@@ -41,6 +41,27 @@ def parse_args() -> Parameters:
                         choices=[4,8],
                         default=[4],
                         help="The number of directions to evaluate. Either 4 or 8. Choose the 2 of them for computing results for both of them separately. Default = 4 only")
+
+    parser.add_argument("--rp-mode",
+                        choices=["DETERMINISTIC", "RANDOM_FULL", "RANDOM_BORDER", "RANDOM_CENTER"],
+                        default="DETERMINISTIC",
+                        type=str.upper,
+                        help="How to choose Rp (reference point): deterministic or random modes.")
+    
+    parser.add_argument("--rp-border-size",
+                        type=int,
+                        default=20,
+                        help="Border size in pixels for RANDOM_BORDER and RANDOM_CENTER Rp modes. Default = 20")
+    
+    parser.add_argument("--iterations",
+                        type=int,
+                        default=1,
+                        help="Number of independent training iterations. Default = 1")
+    
+    parser.add_argument("--seed",
+                        type=int,
+                        default=42,
+                        help="Base seed used to generate independent iterations. Default = 42")
     
     args = parser.parse_args()
 
@@ -81,6 +102,23 @@ def parse_args() -> Parameters:
             case 4: parameters.add_nb_directions(4)
             case 8: parameters.add_nb_directions(8)
             case _: parser.error(f"Unsupported number of directions : {nb_dir}")
+
+    # Decide how Rp is selected
+    match args.rp_mode:
+        case "DETERMINISTIC": parameters.set_rp_mode(ReferencePointMode.DETERMINISTIC)
+        case "RANDOM_FULL": parameters.set_rp_mode(ReferencePointMode.RANDOM_FULL)
+        case "RANDOM_BORDER": parameters.set_rp_mode(ReferencePointMode.RANDOM_BORDER)
+        case "RANDOM_CENTER": parameters.set_rp_mode(ReferencePointMode.RANDOM_CENTER)
+        case _: parser.error(f"Unsupported rp mode: {args.rp_mode}")
+
+    if args.rp_border_size < 0:
+        parser.error("rp-border-size must be >= 0")
+    parameters.set_rp_border_size(args.rp_border_size)
+
+    if args.iterations < 1:
+        parser.error("iterations must be >= 1")
+    parameters.set_nb_iterations(args.iterations)
+    parameters.set_random_seed(args.seed)
 
     return parameters
 

@@ -1,6 +1,9 @@
+import random
+
 from ...utils.Parameters import Parameters
 from .DescriptorEnum import Descriptor
 from ...utils.utils import get_unique_force_degrees_and_force_descriptors
+from ...utils.enumerations import ReferencePointMode
 
 class DescriptorsParameters:
     """Contains the parameters for the descriptors : which descriptors must be computed (we don't necessarily want to compute every descriptors)"""
@@ -21,6 +24,14 @@ class DescriptorsParameters:
 
     nb_radial_lines: int
     """The number of radial lines"""
+    rp_mode: ReferencePointMode
+    """How the point Rp is selected."""
+    rp_border_size: int
+    """Border size used by random border/center Rp modes."""
+    rp_selected_point: tuple[int, int] | None
+    """Selected Rp for the current iteration (absolute image coordinates)."""
+    rp_rng: random.Random | None
+    """Random generator bound to the current iteration."""
     
 
     def __init__(self, parameters: Parameters):
@@ -33,3 +44,12 @@ class DescriptorsParameters:
         self.computeAngles8 = Descriptor.ANGLES8 in unique_descriptors
 
         self.nb_radial_lines = parameters.nb_radial_lines
+        self.rp_mode = parameters.rp_mode
+        self.rp_border_size = parameters.rp_border_size
+        self.rp_selected_point = None
+        self.rp_rng = None
+
+    def reset_rp_for_iteration(self, seed: int):
+        """Reset Rp random state for one training iteration."""
+        self.rp_selected_point = None
+        self.rp_rng = random.Random(seed)

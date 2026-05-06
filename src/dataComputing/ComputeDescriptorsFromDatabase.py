@@ -119,7 +119,7 @@ class ComputeDescriptorsFromDatabase:
                 self.conditions = lambda row, tested_directions: (row['pos'] != "?"
                                                                     #and row['lvl'] != '4' # exclude max difficulty
                                                                     and row['pos'] in tested_directions) # is a tested direction
-                self.getStrImgProcessed = lambda row: f"{row["img_name"]}"
+                self.getStrImgProcessed = lambda row: f"{row['img_name']}"
                 self.getGroundTruth = lambda row: row["pos"]
             case Database.SHARVITSR:
                 self.conditions = lambda row, tested_directions: (row['card'] != "?"

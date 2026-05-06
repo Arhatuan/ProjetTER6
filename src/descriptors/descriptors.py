@@ -309,7 +309,25 @@ def image_processing_v4(imagename, background, step,
     results = DescriptorsData()
 
     objects = ImageRLM.image_segmentation(imagename, background)
-    x, y = ImageRLM.center_point(objects)
+
+    # Rp can be deterministic, or sampled once per iteration then reused for all images.
+    if descriptorsParameters.rp_mode.value == "deterministic":
+        x, y = ImageRLM.center_point(objects)
+    else:
+        if descriptorsParameters.rp_selected_point is None:
+            descriptorsParameters.rp_selected_point = ImageRLM.center_point(
+                objects,
+                mode=descriptorsParameters.rp_mode,
+                border_size=descriptorsParameters.rp_border_size,
+                rng=descriptorsParameters.rp_rng,
+            )
+        x, y = ImageRLM.center_point(
+            objects,
+            mode=descriptorsParameters.rp_mode,
+            border_size=descriptorsParameters.rp_border_size,
+            selected_point=descriptorsParameters.rp_selected_point,
+        )
+
     lines, diameters = ImageRLM.lines_diameters(objects, x, y, step * math.pi / 180)
     
     if descriptorsParameters.computeRLM:              results.rlm1, results.rlm2 = ImageRLM.radial_line_model(lines, objects)
@@ -318,4 +336,3 @@ def image_processing_v4(imagename, background, step,
     if descriptorsParameters.computeAngles:           results.angles, results.angles8 = angle_descriptor(objects, compute_8_directions = descriptorsParameters.computeAngles8)
     
     return results
-

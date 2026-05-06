@@ -1,9 +1,11 @@
 import json
 import math
+import random
 
 import numpy as np
 from PIL import Image
 from .convex_hull import *
+from ..utils.enumerations import ReferencePointMode
 
 
 def image_segmentation(imagename: str, backgroundcolor):
@@ -35,7 +37,7 @@ def image_segmentation(imagename: str, backgroundcolor):
     return objects
 
 
-def center_point(objects):
+def _deterministic_center_point(objects):
     """
     Find the center points between both object using convex hulls. The point found correponds to the point from which
     half lines are drawn to compute the radial line model.
@@ -73,6 +75,64 @@ def center_point(objects):
     if fp2 is None:
         fp2 = pt2
     return int((fp1[0] + fp2[0]) / 2), int((fp1[1] + fp2[1]) / 2)
+
+
+def _sample_random_point(height: int, width: int, mode: ReferencePointMode, border_size: int, rng: random.Random) -> tuple[int, int]:
+    """Sample a random point in an image according to the selected mode."""
+    if height <= 0 or width <= 0:
+        raise ValueError("Image dimensions must be positive")
+
+    if mode == ReferencePointMode.RANDOM_FULL:
+        return rng.randrange(height), rng.randrange(width)
+
+    margin = max(0, border_size)
+    if margin == 0:
+        return rng.randrange(height), rng.randrange(width)
+
+    if mode == ReferencePointMode.RANDOM_CENTER:
+        # If the center area is empty, fallback to full image sampling.
+        if 2 * margin >= height or 2 * margin >= width:
+            return rng.randrange(height), rng.randrange(width)
+        return rng.randrange(margin, height - margin), rng.randrange(margin, width - margin)
+
+    if mode == ReferencePointMode.RANDOM_BORDER:
+        # If the border area covers all pixels, fallback to full image sampling.
+        if 2 * margin >= height or 2 * margin >= width:
+            return rng.randrange(height), rng.randrange(width)
+
+        # Rejection sampling in the full image until the sampled point belongs to a border band.
+        while True:
+            x = rng.randrange(height)
+            y = rng.randrange(width)
+            if x < margin or x >= height - margin or y < margin or y >= width - margin:
+                return x, y
+
+    raise ValueError(f"Unsupported random Rp mode: {mode}")
+
+
+def _clamp_point_to_image(point: tuple[int, int], height: int, width: int) -> tuple[int, int]:
+    """Clamp an (x, y) point to image boundaries."""
+    x, y = point
+    return min(max(0, x), height - 1), min(max(0, y), width - 1)
+
+
+def center_point(objects,
+                 mode: ReferencePointMode = ReferencePointMode.DETERMINISTIC,
+                 border_size: int = 0,
+                 rng: random.Random | None = None,
+                 selected_point: tuple[int, int] | None = None):
+    """Compute Rp according to the selected mode."""
+    if mode == ReferencePointMode.DETERMINISTIC:
+        return _deterministic_center_point(objects)
+
+    height = len(objects[0])
+    width = len(objects[0][0])
+
+    if selected_point is not None:
+        return _clamp_point_to_image(selected_point, height, width)
+
+    local_rng = rng if rng is not None else random.Random()
+    return _sample_random_point(height, width, mode, border_size, local_rng)
 
 
 def lines_diameters(objects, x, y, step):
