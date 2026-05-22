@@ -19,6 +19,11 @@ class Parameters:
     filename: str
     """Option for when its necessary to give a filename (for example when loading a computed descriptors file)"""
 
+    compute_SIG_test_results: bool
+    """Option for when to use the SIG database as a test base for every classifiers"""
+    SIG_computed_descriptors: object
+    """(instance of 'ComputeDescriptorsFromDatabase') Save the computed descriptors from the SIG database (if necessary)"""
+
     def __init__(self):
         self.database = None
         self.classifiers = []
@@ -26,6 +31,9 @@ class Parameters:
         self.nb_directions = []
         self.nb_radial_lines = 120
         self.filename = None
+        self.compute_SIG_test_results = False
+        self.SIG_computed_descriptors = None
+        
 
 
     # SETTERS
@@ -50,4 +58,6 @@ class Parameters:
             list[Descriptor | str]: the list of unique different descriptors (each different force value is also distinct)
         """
         return list(set([descriptor for descriptors_list in self.descriptors_layout for descriptor in descriptors_list]))
+    
+
 

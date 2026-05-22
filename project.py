@@ -51,6 +51,10 @@ def parse_args() -> tuple[Parameters, manager.ManagerOptions]:
                         metavar="filename",
                         help="Indicate the file containing computed descriptors, from which to compute results from whatever wanted descriptors's combinations and classifiers")
     
+    parser.add_argument("--testSIG", "--test_SIG",
+                        action="store_true",
+                        help="Flag for using the SIG database as a test base, from which we compute test results for each possible classifier.")
+    
     args = parser.parse_args()
 
     parameters = Parameters()
@@ -99,6 +103,10 @@ def parse_args() -> tuple[Parameters, manager.ManagerOptions]:
     if args.LOAD:
         manager_option = manager.ManagerOptions.LOAD
         parameters.filename = args.LOAD # read the filename given
+
+    # Decide the flag on computing test results on the SIG database
+    if args.testSIG:
+        parameters.compute_SIG_test_results = True
     
 
     return parameters, manager_option

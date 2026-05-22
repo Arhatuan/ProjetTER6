@@ -2,6 +2,7 @@ from enum import Enum
 import numpy as np
 
 from .utils.Parameters import Parameters
+from .utils.enumerations import Database
 from .descriptors.utils.DescriptorsParameters import DescriptorsParameters
 from .dataComputing.ComputeDescriptorsFromDatabase import ComputeDescriptorsFromDatabase
 from .dataComputing.ComputeResults import ComputeResults
@@ -45,6 +46,13 @@ def _compute_descriptors_and_results(parameters: Parameters):
 
     # 1) Prepare the parameters for the descriptors (which to compute...)
     descriptors_parameters = DescriptorsParameters(parameters)
+
+    # Option) Compute SIG descriptors if necessary as a test base
+    if parameters.compute_SIG_test_results:
+        SIG_computed_descriptors = ComputeDescriptorsFromDatabase(Database.SIG)
+        SIG_computed_descriptors.compute_descriptors(4, descriptors_parameters)
+        parameters.SIG_computed_descriptors = SIG_computed_descriptors
+        
 
     for nb_directions in parameters.nb_directions:
         # 2) Prepare the annotations's file for the given database

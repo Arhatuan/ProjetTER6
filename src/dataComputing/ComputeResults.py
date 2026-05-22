@@ -6,7 +6,7 @@ from ..utils.utils import get_key_descriptors_combination
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 import numpy as np
 from numpy import ndarray
 import time
@@ -17,10 +17,17 @@ class ComputeResults:
     """Scores per descriptors's combination, and then per classifier. Scores are a list of 5 probabilities (from cross-validation on 5 subsets)."""
     matrices: dict[str, dict[Classifier, ndarray]]
     """Confusion matrices per descriptors's combination, and then per classifier. Associated to the scores accessed with the same keys."""
+
+    SIG_scores: dict[str, dict[Classifier, float]]
+    """If we use the SIG database as a test base : accuracy score per descriptors's combination, and then per classifier, based on the SIG database."""
+    SIG_matrices: dict[str, dict[Classifier, ndarray]]
+    """If we use the SIG database as a test base : confusion matrices per descriptors's combination, and then per classifier, based on results computed on the SIG database."""
     
     def __init__(self):
         self.scores = dict()
         self.matrices = dict()
+        self.SIG_scores = dict()
+        self.SIG_matrices = dict()
 
     def __get_trained_model(self, X: list, Y: list, classifier: Classifier):
         """Train a model given data (X) and the corresponding ground truth (Y)
@@ -89,6 +96,8 @@ class ComputeResults:
             key_descriptors_combination = get_key_descriptors_combination(descriptors_combination)
             self.scores[key_descriptors_combination] = dict() 
             self.matrices[key_descriptors_combination] = dict()
+            self.SIG_scores[key_descriptors_combination] = dict()
+            self.SIG_matrices[key_descriptors_combination] = dict()
 
             for j, classifier in enumerate(parameters.classifiers):
                 self.__print_current_state_computing_results(i*2+j+1, total_nb_descriptors_combinations)
@@ -111,6 +120,10 @@ class ComputeResults:
                     print(f"\n\tError when attempting to train classifier {classifier.value} on data from descriptors {key_descriptors_combination} : {e}")
                     self.scores[key_descriptors_combination][classifier] = np.zeros(5, dtype="float32")
                     self.matrices[key_descriptors_combination][classifier] = np.zeros((len(labels), len(labels)), dtype='int32')
+
+                # 4) Test the classifier on the SIG database (if necessary)
+                if parameters.compute_SIG_test_results and parameters.SIG_computed_descriptors:
+                    self.__test_on_SIG_data(clf, classifier, parameters, descriptors_combination, key_descriptors_combination)
         
         print("\tTime taken : {:.1f}s\n".format(time.time() - timeStart))
 
@@ -120,3 +133,30 @@ class ComputeResults:
         strProgress = "(progress: {:2.1%})".format(nb/total_nb_combinations)
         print("{:<27} {:>18}".format(strCurrent, strProgress), end="\r")
         if nb == total_nb_combinations: print() # to cancel the last carriage return character '\r'
+
+    
+    def __test_on_SIG_data(self, clf, classifier: Classifier, parameters: Parameters, descriptors_combination, key_descriptors_combination: str):
+        """Add SIG scores and confusion matrix from a trained classifier"""
+
+        if parameters.compute_SIG_test_results:
+            try:
+                labels_SIG = [label.capitalize() for label in parameters.SIG_computed_descriptors.labels4directions]
+
+                # Compute scores
+                X_data = parameters.SIG_computed_descriptors.list_descriptors_data.generate_X_data_from_descriptors(descriptors_combination)
+                y_true = [y.capitalize() for y in parameters.SIG_computed_descriptors.Y_data]
+                y_pred = clf.predict(X_data)
+                accuracy = accuracy_score(y_true, y_pred)
+
+                self.SIG_scores[key_descriptors_combination][classifier] = accuracy
+
+                # Compute the confusion matrix
+                conf_matrix = confusion_matrix(y_true, y_pred, labels=labels_SIG)
+                self.SIG_matrices[key_descriptors_combination][classifier] = conf_matrix
+            
+            except Exception as e:
+                # Error when testing the classifier on the SIG data
+                print(f"\n\t(SIG test base) Error when attempting to train classifier {classifier.value} on data from descriptors {key_descriptors_combination} : {e}")
+                self.SIG_scores[key_descriptors_combination][classifier] = np.zeros(5, dtype="float32")
+                self.SIG_matrices[key_descriptors_combination][classifier] = np.zeros((len(labels_SIG), len(labels_SIG)), dtype='int32')
+
