@@ -47,6 +47,10 @@ class DisplayResults:
                 scores = results.scores[descriptors_combination][classifier]
                 strClassifier = "{} : ".format(classifier.value.capitalize())
                 print("\t\t- {:<25}\t {:.2f} ± {:.2f}".format(strClassifier, scores.mean(), scores.std()))
+                
+                if classifier in results.SIG_scores[descriptors_combination].keys():
+                    testAccuracy = results.SIG_scores[descriptors_combination][classifier]
+                    print("\t\t\t-> [test on SIG] accuracy : {:.2f}".format(testAccuracy))
     
     def display_results(self):
         """Display the results for each direction, then each descriptors's combination, then each classifier

@@ -46,16 +46,20 @@ class SaveAndDisplayResults(DisplayResults):
             descriptorsCombinations_values = list(results.scores.keys())
             assert len(descriptorsCombinations_values) > 0, "There must be at least one descriptor's combination"
             classifiers_values = list(results.scores[descriptorsCombinations_values[0]].keys())
+
+            testSIG = len(list(results.SIG_scores[list(results.SIG_scores.keys())[0]].keys())) > 0
             
             # Line 1
             strResults = f"# Results for {database.value}\n\n"
             strResults += "|   |   | "
+            if testSIG: strResults += " | " # optional test on SIG
             for descriptorCombination in descriptorsCombinations_values:
                 strResults += f" {descriptorCombination} |"
 
             # Line 2
             strResults += "\n|"
             strResults += "---|"*(2 + len(descriptorsCombinations_values))
+            if testSIG: strResults += "---|" # optional test on SIG
 
             # Other lines
             for results, nb_directions in zip([self.results_4_directions, self.results_8_directions], [4,8]):
@@ -64,15 +68,49 @@ class SaveAndDisplayResults(DisplayResults):
 
                 firstLine_nbDir = True
                 for classifier in classifiers_values:
-                    if firstLine_nbDir:
-                        strResults += f"\n| {nb_directions} directions | {classifier.value.title()} | "
-                        firstLine_nbDir = False
-                    else:
-                        strResults += f"\n|   | {classifier.value.title()} | "
-                    
-                    for descriptorsCombination in descriptorsCombinations_values:
-                        resultsDescriptorsCombination = results.scores[descriptorsCombination][classifier]
-                        strResults += "{:.2f} ± {:.2f} | ".format(np.mean(resultsDescriptorsCombination), np.std(resultsDescriptorsCombination))
+                    # if firstLine_nbDir:
+                    #     strResults += f"\n| {nb_directions} directions | {classifier.value.title()} | "
+                    #     firstLine_nbDir = False
+                    # else:
+                    #     strResults += f"\n|   | {classifier.value.title()} | "
+                    firstLine_testSIG = True # optional test on SIG
+                    nbLinesByClassifier = 1 if not testSIG else 2
+
+                    for _ in range(nbLinesByClassifier):
+
+                        strResults += "\n| "
+                        if firstLine_nbDir:
+                            strResults += f"{nb_directions} directions "
+                            firstLine_nbDir = False
+                        
+
+                        if testSIG: # optional test on SIG
+                            if firstLine_testSIG: 
+                                strResults += f" | {classifier.value.title()} | "
+                                strResults += " cross-validation | "
+                                #firstLine_testSIG = False
+                            else: 
+                                strResults += f" |   | "
+                                strResults += " test on SIG | "
+                        else:
+                            strResults += f" | {classifier.value.title()} | "
+                        
+                        
+                        for descriptorsCombination in descriptorsCombinations_values:
+                            if not testSIG:
+                                resultsDescriptorsCombination = results.scores[descriptorsCombination][classifier]
+                                strResults += "{:.2f} ± {:.2f} | ".format(np.mean(resultsDescriptorsCombination), np.std(resultsDescriptorsCombination))
+
+                            if testSIG:
+                                if firstLine_testSIG:
+                                    resultsDescriptorsCombination = results.scores[descriptorsCombination][classifier]
+                                    strResults += "{:.2f} ± {:.2f} | ".format(np.mean(resultsDescriptorsCombination), np.std(resultsDescriptorsCombination))
+                                else:
+                                    accuracyTestSIG = results.SIG_scores[descriptorsCombination][classifier]
+                                    strResults += "{:.2f} | ".format(accuracyTestSIG)
+
+                        if testSIG and firstLine_testSIG:
+                            firstLine_testSIG = False
 
             return strResults
     
@@ -112,6 +150,8 @@ class SaveAndDisplayResults(DisplayResults):
         descriptorsCombinations_values = list(results.scores.keys())
         assert len(descriptorsCombinations_values) > 0, "There must be at least one descriptor's combination"
         classifiers_values = list(results.scores[descriptorsCombinations_values[0]].keys())
+
+        testSIG = len(list(results.SIG_matrices[list(results.SIG_matrices.keys())[0]].keys())) > 0
         
         constructed_str = ""
 
@@ -122,7 +162,10 @@ class SaveAndDisplayResults(DisplayResults):
             for descriptorsCombination in descriptorsCombinations_values:
                 for classifier in classifiers_values:
                     constructed_str += "\n\n"
-                    constructed_str += f"## {descriptorsCombination} ({nb_directions} directions / {classifier.value.title()})"
+                    if not testSIG:
+                        constructed_str += f"## {descriptorsCombination} ({nb_directions} directions / {classifier.value.title()})"
+                    else:
+                        constructed_str += f"## {descriptorsCombination} ({nb_directions} directions / {classifier.value.title()} / cross-validation)"
                     
                     resultsDescriptorsCombination = results.scores[descriptorsCombination][classifier]
                     constructed_str += "\n\n| Final result | {:.2f} ± {:.2f} | ".format(np.mean(resultsDescriptorsCombination), np.std(resultsDescriptorsCombination))
@@ -132,5 +175,17 @@ class SaveAndDisplayResults(DisplayResults):
                     matrix = results.matrices[descriptorsCombination][classifier]
                     matrix_md = self.__get_markdown_one_confusion_matrix(matrix, nb_directions)
                     constructed_str += "\n\n" + matrix_md
+
+                    if testSIG:
+                        constructed_str += "\n\n"
+                        constructed_str += f"## {descriptorsCombination} ({nb_directions} directions / {classifier.value.title()} / test on SIG )"
+                        
+                        resultAccuracy_descriptorsCombination = results.SIG_scores[descriptorsCombination][classifier]
+                        constructed_str += "\n\n| Final result | {:.2f} | ".format(resultAccuracy_descriptorsCombination)
+                        constructed_str += "\n|---|---|"
+
+                        matrix = results.SIG_matrices[descriptorsCombination][classifier]
+                        matrix_md = self.__get_markdown_one_confusion_matrix(matrix, 4)
+                        constructed_str += "\n\n" + matrix_md
 
         return constructed_str
