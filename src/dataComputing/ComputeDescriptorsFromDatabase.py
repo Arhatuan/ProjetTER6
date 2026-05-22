@@ -57,9 +57,14 @@ class ComputeDescriptorsFromDatabase:
         self.list_descriptors_data = ListDescriptorsData()
         self.Y_data = []
         self.database = database
-        self.__set_path_DB_and_annotations(database)
-        self.__set_labels(database)
-        self.__set_annotations_parameters(database)
+        if not self.__is_multi_databases():
+            self.__set_path_DB_and_annotations(database)
+            self.__set_labels(database)
+            self.__set_annotations_parameters(database)
+
+    def __is_multi_databases(self) -> bool:
+        """Check for multi-databases"""
+        return self.database is Database.S1andS2
 
     def __load_annotations(self, csvfile: str):
         """
@@ -138,13 +143,40 @@ class ComputeDescriptorsFromDatabase:
             nb_directions (int): the number of directions to test
             descriptors_parameters (DescriptorsParameters): contains the general parameters for the descriptors to compute
         """
-        print(f"-> (computing descriptors) For {nb_directions} directions :")
-        timeStart = time.time()
+        # manage singular database or multi-databases separately
+        if self.__is_multi_databases():
+            self.__manage_multi_databases(nb_directions, descriptors_parameters)
+        else:
+            print(f"-> (computing descriptors) For {self.database.value} and {nb_directions} directions :")
+            timeStart = time.time()
 
-        self.__template_compute_descriptors_and_Y_data(nb_directions = nb_directions,
-                                                       descriptors_parameters = descriptors_parameters)
+            self.__template_compute_descriptors_and_Y_data(nb_directions, descriptors_parameters)
+            
+            print("\tTime taken : {:.1f}s".format(time.time() - timeStart))
 
-        print("\tTime taken : {:.1f}s".format(time.time() - timeStart))
+        
+
+    def __manage_multi_databases(self, nb_directions: int, descriptors_parameters: DescriptorsParameters):
+        """Manager for joining several databases's descriptors data together"""
+        match self.database:
+            case Database.S1andS2:
+                # 0) Prepare the parameters
+                self.__set_labels(Database.S1)
+                self.__set_path_DB_and_annotations(Database.S1) # fail-safe if necessary
+                self.__set_annotations_parameters(Database.S1) # idem
+                
+                # 1) Compute descriptors from S1 and S2
+                S1_computeDescriptors = ComputeDescriptorsFromDatabase(Database.S1)
+                S1_computeDescriptors.compute_descriptors(nb_directions, descriptors_parameters)
+                S2_computeDescriptors = ComputeDescriptorsFromDatabase(Database.S2)
+                S2_computeDescriptors.compute_descriptors(nb_directions, descriptors_parameters)
+
+                # 2) Combine the descriptors data
+                self.list_descriptors_data = S1_computeDescriptors.list_descriptors_data.combine_instance_with_another(S2_computeDescriptors.list_descriptors_data)
+                S1_computeDescriptors.Y_data.extend( S2_computeDescriptors.Y_data )
+                self.Y_data = S1_computeDescriptors.Y_data
+
+            case _: raise ValueError(f"Unsupported multi-databases : {self.database}")
 
 
     def __template_compute_descriptors_and_Y_data(self, nb_directions: int, descriptors_parameters: DescriptorsParameters):

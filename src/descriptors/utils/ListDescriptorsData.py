@@ -95,3 +95,17 @@ class ListDescriptorsData:
             new_listDescriptorsData.force[force_descriptor] = list(previous_attribute[indexes])
         
         return new_listDescriptorsData
+    
+    def combine_instance_with_another(self, another_listDescriptorsData: ListDescriptorsData) -> ListDescriptorsData:
+        """Combine the current instance with another ListDescriptorsData instance"""
+        self.rlm.extend( another_listDescriptorsData.rlm )
+        self.dist1.extend( another_listDescriptorsData.dist1 )
+        self.dist2.extend( another_listDescriptorsData.dist2 )
+        self.angles.extend( another_listDescriptorsData.angles )
+        self.angles8.extend( another_listDescriptorsData.angles8 )
+
+        assert self.force.keys() == another_listDescriptorsData.force.keys(), "Attempted to combine two ListDescriptorsData with different forces"
+        for force_descriptor in self.force.keys():
+            self.force[force_descriptor].extend( another_listDescriptorsData.force[force_descriptor] )
+        
+        return self

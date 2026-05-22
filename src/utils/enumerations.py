@@ -6,6 +6,7 @@ class Database(Enum):
     S2 = "SimpleShapes2"
     SIG = "SIG"
     SHARVITSR = "SharvitSR"
+    S1andS2 = "S1+S2"
     # ...
 
 class Classifier(Enum):
